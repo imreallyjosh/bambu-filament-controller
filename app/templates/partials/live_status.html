@@ -1,0 +1,20 @@
+{# Live printer status block. Values are refreshed by static/js/app.js from /api/status. #}
+{% set s = p.status %}
+{% set has_chamber = PROFILES[p.model].cap('chamber_temp_sensor').status != 'unsupported' %}
+{% if not p.enabled %}
+<p class="text-body-secondary small mb-2">Printer is disabled, so it is not being monitored.</p>
+{% elif controller and 'disabled' in controller.mqtt_mode %}
+<p class="text-warning small mb-2">Monitoring is switched off on the server (<code>BFC_ENABLE_MQTT=false</code>).</p>
+{% endif %}
+<dl class="row small mb-0">
+  <dt class="col-6">State</dt><dd class="col-6" data-live="{{ p.id }}" data-f="gcode_state">{{ (s.gcode_state if s else none) or '—' }}</dd>
+  <dt class="col-6">Bed (heater reading)</dt>
+  <dd class="col-6"><span data-live="{{ p.id }}" data-f="bed_temp_c">{{ (s.bed_temp_c if s else none)|temp }}</span>
+    → <span data-live="{{ p.id }}" data-f="bed_target_c">{{ (s.bed_target_c if s else none)|temp }}</span></dd>
+  <dt class="col-6">Nozzle</dt><dd class="col-6" data-live="{{ p.id }}" data-f="nozzle_temp_c">{{ (s.nozzle_temp_c if s else none)|temp }}</dd>
+  <dt class="col-6">Chamber</dt>
+  <dd class="col-6">{% if has_chamber %}<span data-live="{{ p.id }}" data-f="chamber_temp_c">{{ (s.chamber_temp_c if s else none)|temp }}</span>
+    <span class="text-body-secondary">(printer sensor)</span>{% else %}<span class="text-body-secondary">no sensor on {{ p.model }}</span>{% endif %}</dd>
+  <dt class="col-6">Last data</dt><dd class="col-6" data-live="{{ p.id }}" data-f="last_seen">{{ s.last_seen_at|ago if s else 'never' }}</dd>
+</dl>
+<div class="small text-danger mt-1" data-live="{{ p.id }}" data-f="last_error">{{ s.last_error if s and s.last_error and p.enabled else '' }}</div>

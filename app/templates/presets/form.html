@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import field %}
+{% block title %}{{ 'Edit preset' if preset.id else 'New preset' }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{{ ('Edit ' ~ preset.label) if preset.id else 'New custom drying preset' }}</h1>
+<form method="post" class="card card-body">
+  {{ form.hidden_tag() }}
+  <div class="row">
+    {{ field(form.manufacturer, 'col-md-4') }}
+    {{ field(form.material, 'col-md-4') }}
+    {{ field(form.product_name, 'col-md-4') }}
+  </div>
+  <h2 class="h6 mt-2">Manufacturer reference (filament dryer / oven air temperature, NOT bed target)</h2>
+  <div class="row">
+    {{ field(form.ref_air_temp_c, 'col-md-3') }}
+    {{ field(form.ref_air_temp_max_c, 'col-md-3') }}
+    {{ field(form.ref_duration_min_h, 'col-md-3') }}
+    {{ field(form.ref_duration_max_h, 'col-md-3') }}
+  </div>
+  {{ field(form.max_temp_c) }}
+  <div class="row">
+    {{ field(form.spool_requirements, 'col-md-6') }}
+    {{ field(form.cover_requirements, 'col-md-6') }}
+  </div>
+  {{ field(form.rotation_required) }}
+  {{ field(form.source_reference) }}
+  <div class="row">
+    {{ field(form.verification_status, 'col-md-4') }}
+    {{ field(form.notes, 'col-md-8') }}
+  </div>
+  <p class="small text-body-secondary">Printer-specific bed targets are edited on the preset's detail page after saving.</p>
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary">Save</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('presets.detail', preset_id=preset.id) if preset.id else url_for('presets.index') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

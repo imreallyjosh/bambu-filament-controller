@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import field %}
+{% block title %}Log in{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-sm-8 col-md-5 col-lg-4">
+    <h1 class="h4 mb-4 text-center">🧵 Bambu Filament Controller</h1>
+    <form method="post" class="card card-body">
+      {{ form.hidden_tag() }}
+      {{ field(form.username) }}
+      {{ field(form.password) }}
+      <button class="btn btn-primary w-100">Log in</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

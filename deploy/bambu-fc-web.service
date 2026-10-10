@@ -1,0 +1,32 @@
+[Unit]
+Description=Bambu Filament Controller - web UI (Gunicorn)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bambufc
+Group=bambufc
+WorkingDirectory=/opt/bambu-filament-controller
+EnvironmentFile=/etc/bambu-filament-controller/controller.env
+ExecStart=/opt/bambu-filament-controller/venv/bin/gunicorn --config /opt/bambu-filament-controller/deploy/gunicorn.conf.py wsgi:app
+Restart=on-failure
+RestartSec=5
+UMask=0027
+
+# Hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/bambu-filament-controller
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

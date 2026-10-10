@@ -1,0 +1,24 @@
+{# Live card for an active process. Requires `proc`. Values refreshed by app.js from /api/processes/<id>. #}
+<div class="card border-warning mb-3" data-process="{{ proc.id }}" data-src="{{ url_for('api.process', process_id=proc.id) }}">
+  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <span>{{ proc.printer_name }}: {{ proc.material_label }}
+      <span class="text-body-secondary small">({{ 'heater test' if proc.kind == 'heater_test' else proc.kind }} #{{ proc.id }})</span></span>
+    <span class="badge text-bg-warning" data-pf="state">{{ proc.state }}</span>
+  </div>
+  <div class="card-body">
+    <div class="row text-center g-2 mb-2">
+      <div class="col-6 col-md-3"><div class="small text-body-secondary">Bed (heater reading)</div><div class="fs-5" data-pf="bed_temp_c">—</div></div>
+      <div class="col-6 col-md-3"><div class="small text-body-secondary">Target</div><div class="fs-5">{{ proc.target_bed_c|temp }}</div></div>
+      <div class="col-6 col-md-3"><div class="small text-body-secondary">Remaining</div><div class="fs-5" data-pf="remaining_s">—</div></div>
+      <div class="col-6 col-md-3"><div class="small text-body-secondary">Scheduled stop</div><div class="small" data-pf="scheduled_end">—</div></div>
+    </div>
+    <div class="progress mb-1" role="progressbar" aria-label="Progress"><div class="progress-bar bg-warning" data-pf="progress"></div></div>
+    <div class="small text-body-secondary mb-2" data-pf="note"></div>
+    <form method="post" action="{{ url_for('drying.stop', process_id=proc.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-danger w-100" data-confirm="Stop and switch the heater off?">Stop: switch heater off</button>
+    </form>
+    <div class="small text-body-secondary mt-2">Pause isn't supported for idle bed heating; stop and start a new session instead.
+      The bed reading is the heater, not the filament temperature.</div>
+  </div>
+</div>

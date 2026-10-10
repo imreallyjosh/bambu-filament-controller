@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import field, vs_badge, val, post_button %}
+{% block title %}{{ preset.label }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h3 m-0">{{ preset.label }} {{ vs_badge(preset.verification_status) }}</h1>
+  <div class="d-flex gap-2">
+    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('presets.edit', preset_id=preset.id) }}">Edit reference data</a>
+    {{ post_button(url_for('presets.clone', preset_id=preset.id), 'Clone as custom') }}
+    {% if not preset.is_template %}
+    {{ post_button(url_for('presets.delete', preset_id=preset.id), 'Delete', 'btn-outline-danger', confirm='Delete this preset?') }}
+    {% endif %}
+  </div>
+</div>
+
+<div class="card mb-4"><div class="card-header">Manufacturer reference — drying-air values (not bed targets)</div>
+  <div class="card-body"><dl class="row small mb-0">
+    <dt class="col-sm-3">Material</dt><dd class="col-sm-9">{{ preset.material }}</dd>
+    <dt class="col-sm-3">Drying-air temperature</dt><dd class="col-sm-9">{{ val(preset.ref_air_temp_c, ' °C') }}{% if preset.ref_air_temp_max_c %}–{{ preset.ref_air_temp_max_c }} °C{% endif %}</dd>
+    <dt class="col-sm-3">Duration</dt><dd class="col-sm-9">{{ val(preset.ref_duration_min_h, ' h') }}{% if preset.ref_duration_max_h %}–{{ preset.ref_duration_max_h }} h{% endif %}</dd>
+    <dt class="col-sm-3">Max permitted temp</dt><dd class="col-sm-9">{{ val(preset.max_temp_c, ' °C') }}</dd>
+    <dt class="col-sm-3">Spool requirements</dt><dd class="col-sm-9">{{ val(preset.spool_requirements) }}</dd>
+    <dt class="col-sm-3">Spool rotation</dt><dd class="col-sm-9">{{ 'required' if preset.rotation_required else 'not required' }}</dd>
+    <dt class="col-sm-3">Drying cover</dt><dd class="col-sm-9">{{ val(preset.cover_requirements) }}</dd>
+    <dt class="col-sm-3">Source</dt><dd class="col-sm-9">{{ val(preset.source_reference) }}</dd>
+    <dt class="col-sm-3">Notes</dt><dd class="col-sm-9">{{ val(preset.notes) }}</dd>
+  </dl></div>
+</div>
+
+<h2 class="h5">Printer-specific operating settings</h2>
+<p class="small text-body-secondary">Set independently per model. A bed target cannot exceed the lowest of: model spec
+  maximum, the material's maximum, and this preset's max bed value. Changing a temperature resets verification.</p>
+<div class="row g-3">
+  {% for model, f in forms.items() %}
+  <div class="col-lg-6">
+    <form method="post" action="{{ url_for('presets.save_printer_setting', preset_id=preset.id, model=model) }}" class="card">
+      <div class="card-header d-flex justify-content-between">
+        <span>{{ PROFILES[model].display_name }}</span>{{ vs_badge(preset.setting_for(model).verification_status) }}
+      </div>
+      <div class="card-body">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="row">
+          {{ field(f.bed_target_c, 'col-md-6') }}
+          {{ field(f.drying_time_h, 'col-md-6') }}
+          {{ field(f.max_bed_c, 'col-md-6') }}
+          {{ field(f.expected_enclosure_c, 'col-md-6') }}
+          {{ field(f.fan_setting, 'col-md-6') }}
+        </div>
+        {{ field(f.verification_status) }}
+        {{ field(f.verification_notes) }}
+        <div class="small text-body-secondary mb-2">Model spec heatbed max: {{ PROFILES[model].cap('bed_max_temp_c').value }} °C
+          ({{ PROFILES[model].cap('bed_max_temp_c').status }}). Fan control is {{ PROFILES[model].cap('fan_control_idle').status }}.</div>
+        <button class="btn btn-sm btn-primary">Save {{ model }} settings</button>
+      </div>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

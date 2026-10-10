@@ -1,0 +1,39 @@
+[Unit]
+Description=Bambu Filament Controller - printer supervisor daemon
+After=network-online.target
+Wants=network-online.target
+# If restarts are exhausted, send a critical notification via the web app's CLI.
+OnFailure=bambu-fc-alert@%n.service
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=notify
+NotifyAccess=main
+# The daemon pings the watchdog only after a successful DB heartbeat write.
+WatchdogSec=30
+User=bambufc
+Group=bambufc
+WorkingDirectory=/opt/bambu-filament-controller
+EnvironmentFile=/etc/bambu-filament-controller/controller.env
+ExecStart=/opt/bambu-filament-controller/venv/bin/python /opt/bambu-filament-controller/controller/daemon.py
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+UMask=0027
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/bambu-filament-controller
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

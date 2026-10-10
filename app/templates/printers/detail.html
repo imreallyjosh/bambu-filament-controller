@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import cap_badge, post_button, val %}
+{% block title %}{{ printer.name }}{% endblock %}
+{% block content %}
+{% set s = printer.status %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h3 m-0">{{ printer.name }} <span class="badge text-bg-dark border fs-6">{{ profile.display_name }}</span></h1>
+  <div class="d-flex gap-2">
+    <a class="btn btn-sm btn-outline-warning" href="{{ url_for('heater.index', printer_id=printer.id) }}">Heater test</a>
+    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('printers.edit', printer_id=printer.id) }}">Edit</a>
+    {{ post_button(url_for('printers.toggle', printer_id=printer.id), 'Disable' if printer.enabled else 'Enable',
+                   'btn-outline-warning' if printer.enabled else 'btn-outline-success') }}
+    {% if not printer.enabled %}
+    {{ post_button(url_for('printers.delete', printer_id=printer.id), 'Delete', 'btn-outline-danger',
+                   confirm='Delete this printer? History rows are kept.') }}
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card mb-3"><div class="card-header">Configuration</div>
+      <div class="card-body"><dl class="row small mb-0">
+        <dt class="col-5">IP address</dt><dd class="col-7"><code>{{ printer.ip_address }}</code></dd>
+        <dt class="col-5">Serial</dt><dd class="col-7"><code>{{ printer.serial }}</code></dd>
+        <dt class="col-5">Access code</dt><dd class="col-7">stored (encrypted)</dd>
+        <dt class="col-5">Firmware (entered)</dt><dd class="col-7">{{ val(printer.firmware_version) }}</dd>
+        <dt class="col-5">Firmware (reported)</dt><dd class="col-7">{{ val(printer.firmware_version_reported) }}</dd>
+        <dt class="col-5">Network mode</dt><dd class="col-7">{{ val(printer.network_mode) }}</dd>
+        <dt class="col-5">TLS cert pinned</dt><dd class="col-7">{% if printer.tls_fingerprint %}
+          <span title="{{ printer.tls_fingerprint }}">yes</span>
+          {% if not printer.enabled %}{{ post_button(url_for('printers.reset_pin', printer_id=printer.id), 'Reset',
+             'btn-outline-warning py-0', confirm='Clear the pinned certificate? Only do this if the printer was replaced or reset.') }}{% endif %}
+          {% else %}not yet{% endif %}</dd>
+        <dt class="col-5">Bed cap</dt><dd class="col-7">{{ printer.max_bed_temp_c or profile.cap('bed_max_temp_c').value }} °C
+          {% if not printer.max_bed_temp_c %}<span class="text-body-secondary">(model spec)</span>{% endif %}</dd>
+        <dt class="col-5">Enabled</dt><dd class="col-7">{{ 'yes' if printer.enabled else 'no' }}</dd>
+      </dl></div>
+    </div>
+
+    {% set p = printer %}
+    <div class="card mb-3"><div class="card-header d-flex justify-content-between">Live status (read-only)
+      {% include "partials/online_badge.html" %}</div>
+      <div class="card-body">{% include "partials/live_status.html" %}</div>
+    </div>
+
+    <div class="card mb-3 {{ 'border-success' if heater_allowed else '' }}"><div class="card-header">Heater control interlock</div>
+      <div class="card-body small">
+        {% if heater_allowed %}<span class="badge text-bg-success">allowed</span>
+        {% else %}<span class="badge text-bg-secondary">locked</span> {{ heater_reason }}{% endif %}
+        {% if printer.heater_control_verified %}
+        <div class="mt-2">Verified on firmware {{ printer.heater_control_verified_firmware }} at {{ printer.heater_control_verified_at|localtime }}</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card mb-3"><div class="card-header">Temperatures, last 6 hours</div>
+      <div class="card-body">
+        <div class="chart-box"><canvas data-src="{{ url_for('api.telemetry', printer_id=printer.id, hours=6) }}"
+             data-empty="chart-empty-{{ printer.id }}" aria-label="Temperature history"></canvas></div>
+        <p id="chart-empty-{{ printer.id }}" class="small text-body-secondary mb-0">No samples yet (one is recorded every 30 s while connected).</p>
+        <p class="small text-body-secondary mb-0 mt-2">Bed values are the printer's heater sensor, not the filament temperature.</p>
+      </div>
+    </div>
+
+    <div class="card mb-3"><div class="card-header">Capability profile: {{ profile.key }}</div>
+      <div class="table-responsive"><table class="table table-sm mb-0 small">
+        <thead><tr><th>Capability</th><th>Status</th><th>Value</th><th>Detail</th></tr></thead>
+        <tbody>
+        {% for name, c in profile.capabilities.items() %}
+          <tr><td><code>{{ name }}</code></td><td>{{ cap_badge(c.status) }}</td>
+            <td>{{ c.value if c.value is not none else '' }}</td><td>{{ c.detail }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+      <div class="card-footer small text-body-secondary">
+        {% for n in profile.notes %}<p class="mb-1">{{ n }}</p>{% endfor %}
+        Full status per push: {{ 'yes' if profile.full_status_push else 'no (delta reports)' }} ·
+        pushall min interval: {{ profile.pushall_min_interval_s }} s
+      </div>
+    </div>
+
+    {% if s and s.raw_json %}
+    <details class="card mb-3"><summary class="card-header">Last raw status report (for protocol verification)</summary>
+      <pre class="card-body small mb-0 raw-json">{{ s.raw_json|tojson_pretty }}</pre>
+    </details>
+    {% endif %}
+
+    <div class="card"><div class="card-header">Event log</div>
+      <ul class="list-group list-group-flush">
+        {% for e in events %}
+        <li class="list-group-item small"><span class="text-body-secondary">{{ e.ts|localtime(false) }}</span> {{ e.message }}</li>
+        {% else %}<li class="list-group-item small text-body-secondary">No events.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block vendor_scripts %}<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>{% endblock %}

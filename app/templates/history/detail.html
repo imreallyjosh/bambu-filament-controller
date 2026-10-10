@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import val %}
+{% block title %}Process #{{ proc.id }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{{ proc.kind|title }} #{{ proc.id }} <span class="badge text-bg-secondary">{{ proc.state }}</span></h1>
+<div class="card card-body small mb-3"><dl class="row mb-0">
+  <dt class="col-sm-3">Printer</dt><dd class="col-sm-9">{{ val(proc.printer_name) }}</dd>
+  <dt class="col-sm-3">Material</dt><dd class="col-sm-9">{{ val(proc.material_label) }}</dd>
+  <dt class="col-sm-3">Spool</dt><dd class="col-sm-9">{{ val(proc.spool_size_g, ' g') }}</dd>
+  <dt class="col-sm-3">Target bed</dt><dd class="col-sm-9">{{ val(proc.target_bed_c, ' °C') }}</dd>
+  <dt class="col-sm-3">Started / ended</dt><dd class="col-sm-9">{{ proc.started_at|localtime }} → {{ proc.ended_at|localtime }}</dd>
+  <dt class="col-sm-3">Max bed observed</dt><dd class="col-sm-9">{{ proc.max_bed_observed_c|temp }}</dd>
+  <dt class="col-sm-3">Target reached</dt><dd class="col-sm-9">{{ proc.target_reached_at|localtime }}</dd>
+  <dt class="col-sm-3">Planned</dt><dd class="col-sm-9">{% if proc.scheduled_end_at %}until {{ proc.scheduled_end_at|localtime }}{% else %}{{ val(proc.planned_duration_min, ' min') }}{% endif %}</dd>
+  <dt class="col-sm-3">Flip reminder</dt><dd class="col-sm-9">{% if proc.flip_reminder %}{{ ('sent ' ~ (proc.flip_notified_at|localtime)) if proc.flip_notified_at else 'on (not sent)' }}{% else %}off{% endif %}</dd>
+  <dt class="col-sm-3">Heater off verified</dt><dd class="col-sm-9">{{ 'yes' if proc.heater_off_verified else 'NO' }}</dd>
+  <dt class="col-sm-3">Error</dt><dd class="col-sm-9">{{ val(proc.error) }}</dd>
+</dl></div>
+<div class="card"><div class="card-header">Temperature history</div>
+  <div class="card-body">
+    <div class="chart-box"><canvas data-src="{{ url_for('api.process_telemetry', process_id=proc.id) }}"
+         data-empty="chart-empty" aria-label="Temperature history"></canvas></div>
+    <p id="chart-empty" class="small text-body-secondary mb-0">No samples recorded for this run.</p>
+    <p class="small text-body-secondary mb-0 mt-2">Bed values are the printer's heater sensor, not the filament temperature.</p>
+  </div>
+</div>
+{% endblock %}
+{% block vendor_scripts %}<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>{% endblock %}

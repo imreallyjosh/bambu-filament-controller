@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import field, post_button, val %}
+{% block title %}Heater test · {{ printer.name }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h3 m-0">Heater test: {{ printer.name }} <span class="badge text-bg-dark border fs-6">{{ printer.model }}</span></h1>
+  <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('printers.detail', printer_id=printer.id) }}">Back to printer</a>
+</div>
+
+{% if active %}
+<div class="card border-warning mb-4" data-process="{{ active.id }}" data-src="{{ url_for('api.process', process_id=active.id) }}">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>Test #{{ active.id }}: bed {{ active.target_bed_c|int }} °C for {{ active.planned_duration_min }} min</span>
+    <span class="badge text-bg-warning" data-pf="state">{{ active.state }}</span>
+  </div>
+  <div class="card-body">
+    <div class="row text-center g-3 mb-3">
+      <div class="col-6 col-md-3"><div class="small text-body-secondary">Bed (heater reading)</div><div class="fs-4" data-pf="bed_temp_c">—</div></div>
+      <div class="col-6 col-md-3"><div class="small text-body-secondary">Bed target reported</div><div class="fs-4" data-pf="bed_target_c">—</div></div>
+      <div class="col-6 col-md-3"><div class="small text-body-secondary">Elapsed</div><div class="fs-4" data-pf="elapsed_s">—</div></div>
+      <div class="col-6 col-md-3"><div class="small text-body-secondary">Remaining</div><div class="fs-4" data-pf="remaining_s">—</div></div>
+    </div>
+    <div class="progress mb-3" role="progressbar" aria-label="Progress"><div class="progress-bar bg-warning" data-pf="progress"></div></div>
+    <form method="post" action="{{ url_for('heater.stop', printer_id=printer.id, process_id=active.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-danger btn-lg w-100">STOP: switch heater off now</button>
+    </form>
+    <p class="small text-body-secondary mt-2 mb-0">If this page or the server stops responding, set the bed to 0 on the
+      printer's touchscreen. Scheduled end: <span data-pf="scheduled_end">—</span></p>
+  </div>
+</div>
+{% else %}
+<div class="row g-3 mb-4">
+  <div class="col-lg-5">
+    <div class="card h-100"><div class="card-header">Preconditions</div>
+      <ul class="list-group list-group-flush small">
+        {% for label, ok, detail in checks %}
+        <li class="list-group-item d-flex justify-content-between gap-2"><span>{{ '✅' if ok else '⛔' }} {{ label }}</span>
+          <span class="text-body-secondary text-end">{{ detail }}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <form method="post" class="card h-100">
+      <div class="card-header">Start an attended test</div>
+      <div class="card-body">
+        {{ form.hidden_tag() }}
+        <div class="row">{{ field(form.target_c, 'col-md-4') }}{{ field(form.minutes, 'col-md-4') }}{{ field(form.print_hours_before, 'col-md-4') }}</div>
+        {{ field(form.present) }}{{ field(form.bed_clear) }}{{ field(form.stop_known) }}
+        <p class="small text-body-secondary">The app sends one command (bed target via <code>M140</code>), then checks
+          that the printer reports the new target. It stops and switches the heater off if the printer rejects the
+          command, the bed overshoots by more than 8 °C, contact is lost, a print starts, or time is up. Every
+          heater-off is confirmed from the printer's own report.</p>
+        <button class="btn btn-warning" {{ 'disabled' if not ready }}>Start heater test</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if can_verify %}
+<div class="alert alert-success d-flex flex-wrap justify-content-between align-items-center gap-2">
+  <span>Test #{{ can_verify.id }} completed with heater shutdown confirmed on firmware {{ can_verify.firmware_at_start }}.</span>
+  {{ post_button(url_for('heater.mark_verified', printer_id=printer.id), 'Mark heater control verified', 'btn-success',
+     confirm='Mark heater control verified for this printer and firmware?') }}
+</div>
+{% endif %}
+
+<h2 class="h5">Test history</h2>
+<div class="table-responsive"><table class="table table-sm small align-middle">
+  <thead><tr><th>#</th><th>Started</th><th>Target</th><th>Planned</th><th>Max bed</th><th>Result</th>
+    <th>Heater off confirmed</th><th>Firmware</th><th>Print hours before → after</th><th>Error</th></tr></thead>
+  <tbody>
+  {% for t in tests %}
+  <tr>
+    <td><a href="{{ url_for('history.detail', process_id=t.id) }}">{{ t.id }}</a></td>
+    <td class="text-nowrap">{{ t.started_at|localtime }}</td><td>{{ t.target_bed_c|int }} °C</td>
+    <td>{{ t.planned_duration_min }} min</td><td>{{ t.max_bed_observed_c|temp }}</td>
+    <td><span class="badge text-bg-{{ {'completed':'success','stopped':'secondary','failed':'danger','safety_shutdown':'danger'}.get(t.state,'warning') }}">{{ t.state }}</span></td>
+    <td>{{ '✅ yes' if t.heater_off_verified else ('—' if t.state in ['pending','heating','drying','cooling'] else '⚠️ NO') }}</td>
+    <td>{{ val(t.firmware_at_start) }}</td>
+    <td>{{ val(t.print_hours_before) }} →
+      {% if t.print_hours_after is not none %}{{ t.print_hours_after }}
+        {% if t.print_hours_after == t.print_hours_before %}<span class="badge text-bg-success">unchanged</span>
+        {% else %}<span class="badge text-bg-warning">changed</span>{% endif %}
+      {% elif t.state in ['completed', 'stopped', 'failed', 'safety_shutdown'] and t.started_at %}
+      <form method="post" action="{{ url_for('heater.record_hours', printer_id=printer.id, process_id=t.id) }}" class="d-inline-flex gap-1">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input class="form-control form-control-sm hours-input" name="print_hours_after" type="number" step="any" min="0"
+               placeholder="after" aria-label="Print hours after" required>
+        <button class="btn btn-sm btn-outline-primary">Save</button>
+      </form>{% else %}—{% endif %}</td>
+    <td>{{ t.error or '' }}</td>
+  </tr>
+  {% else %}<tr><td colspan="10" class="text-body-secondary">No tests yet.</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+{% if printer.print_hours_test_notes %}
+<div class="card card-body small"><strong>Print-hour findings</strong><pre class="mb-0 raw-json">{{ printer.print_hours_test_notes }}</pre></div>
+{% endif %}
+{% endblock %}

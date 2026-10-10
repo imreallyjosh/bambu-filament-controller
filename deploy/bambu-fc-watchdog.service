@@ -1,0 +1,8 @@
+[Unit]
+Description=Bambu Filament Controller - independent heartbeat check
+
+[Service]
+Type=oneshot
+User=bambufc
+Group=bambufc
+ExecStart=/opt/bambu-filament-controller/deploy/manage.sh check-controller

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import field, post_button %}
+{% block title %}Annealing preset{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{{ ('Edit ' ~ preset.material ~ ' annealing preset') if preset.id else 'New annealing preset' }}</h1>
+<form method="post" class="card card-body mb-3">
+  {{ form.hidden_tag() }}
+  <div class="row">
+    {{ field(form.manufacturer, 'col-md-6') }}
+    {{ field(form.material, 'col-md-6') }}
+    {{ field(form.anneal_temp_c, 'col-md-4') }}
+    {{ field(form.hold_minutes, 'col-md-4') }}
+    {{ field(form.max_temp_c, 'col-md-4') }}
+    {{ field(form.heat_ramp_c_per_h, 'col-md-6') }}
+    {{ field(form.cool_ramp_c_per_h, 'col-md-6') }}
+  </div>
+  {{ field(form.distortion_warning) }}
+  {{ field(form.required_equipment) }}
+  {{ field(form.source_reference) }}
+  <div class="row">
+    {{ field(form.verification_status, 'col-md-4') }}
+    {{ field(form.notes, 'col-md-8') }}
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary">Save</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('annealing.index') }}">Cancel</a>
+  </div>
+</form>
+{% if preset.id and not preset.is_template %}
+{{ post_button(url_for('annealing.delete', preset_id=preset.id), 'Delete preset', 'btn-outline-danger', confirm='Delete?') }}
+{% endif %}
+{% endblock %}

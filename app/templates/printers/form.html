@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import field %}
+{% block title %}{{ 'Edit ' ~ printer.name if printer else 'Add printer' }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{{ 'Edit ' ~ printer.name if printer else 'Add printer' }}</h1>
+<div class="row">
+  <div class="col-lg-7">
+    <form method="post" class="card card-body" autocomplete="off">
+      {{ form.hidden_tag() }}
+      <div class="row">
+        {{ field(form.name, 'col-md-6') }}
+        {{ field(form.model, 'col-md-6') }}
+        {{ field(form.ip_address, 'col-md-6') }}
+        {{ field(form.serial, 'col-md-6') }}
+        {{ field(form.access_code, 'col-md-6') }}
+        {{ field(form.firmware_version, 'col-md-6') }}
+        {{ field(form.network_mode, 'col-md-6') }}
+        {{ field(form.max_bed_temp_c, 'col-md-6') }}
+      </div>
+      {{ field(form.notes) }}
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary">Save</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('printers.detail', printer_id=printer.id) if printer else url_for('printers.index') }}">Cancel</a>
+      </div>
+    </form>
+  </div>
+  <div class="col-lg-5 mt-3 mt-lg-0">
+    <div class="card card-body small">
+      <h2 class="h6">Where to find these on the printer</h2>
+      <ul class="mb-2">
+        <li><strong>IP address & LAN access code:</strong> printer screen → Settings → Network (WLAN). Reserve the IP in your router's DHCP.</li>
+        <li><strong>Serial number:</strong> Settings → Device (also on the label at the back).</li>
+        <li><strong>Firmware:</strong> Settings → Firmware. The app also reads it from the printer once connected.</li>
+        <li><strong>Network mode:</strong> whether "LAN Only" and "Developer Mode" are on.
+          On Authorization-Control firmware, third-party temperature commands are rejected unless Developer Mode is enabled.</li>
+      </ul>
+      <p class="mb-0 text-body-secondary">The access code is encrypted in the database with a key stored in
+        <code>/etc/bambu-filament-controller/controller.env</code>. It is never shown again after saving.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

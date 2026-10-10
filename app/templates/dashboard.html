@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import post_button %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 m-0">Dashboard</h1>
+  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('printers.create') }}">Add printer</a>
+</div>
+
+{% if controller and not controller.alive %}
+<div class="alert alert-danger">
+  <strong>Controller daemon is not running</strong> (last heartbeat: {{ controller.heartbeat_at|ago }}).
+  No telemetry or supervision is available. Check <code>systemctl status bambu-fc-controller</code>.
+</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+  {% for p in printers %}
+  {% set s = p.status %}
+  {% set proc = active.get(p.id) %}
+  <div class="col-md-6 col-xl-4">
+    <div class="card h-100 {{ 'border-warning' if proc else '' }}">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <a href="{{ url_for('printers.detail', printer_id=p.id) }}" class="fw-semibold text-decoration-none">{{ p.name }}</a>
+        <span>
+          <span class="badge text-bg-dark border">{{ p.model }}</span>
+          {% include "partials/online_badge.html" %}
+        </span>
+      </div>
+      <div class="card-body">
+        {% include "partials/live_status.html" %}
+        {% set job = job_info(s.raw_json) if s and p.enabled else none %}
+        {% if job and not job.active and proc %}{% set job = none %}{% endif %}
+        {% include "partials/print_job.html" %}
+        {% if proc %}<hr>{% include "partials/process_card.html" %}{% endif %}
+      </div>
+      {% if p.enabled %}
+      <div class="card-footer">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-camera-toggle="camera-{{ p.id }}">Show camera</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-camera-fullscreen="camera-{{ p.id }}" hidden>Full screen</button>
+        <div class="camera-box mt-2" id="camera-{{ p.id }}" data-src="{{ url_for('printers.camera_snapshot', printer_id=p.id) }}" hidden>
+          <img class="img-fluid rounded camera-img" alt="{{ p.name }} camera" hidden>
+          <button type="button" class="btn btn-sm btn-dark border camera-exit" data-camera-exit>✕ Exit full screen</button>
+          <div class="small text-body-secondary camera-status" data-camera-status>Starting the camera…</div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="col-12"><div class="alert alert-secondary">No printers configured yet.
+    <a href="{{ url_for('printers.create') }}">Add your P1S and X1</a>.</div></div>
+  {% endfor %}
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card"><div class="card-header">Unacknowledged alerts</div>
+      <ul class="list-group list-group-flush">
+        {% for a in alerts %}
+        <li class="list-group-item small">
+          <span class="badge text-bg-{{ {'critical':'danger','warning':'warning'}.get(a.severity,'info') }}">{{ a.severity }}</span>
+          {{ a.title }} <span class="text-body-secondary">· {{ a.ts|localtime }}</span>
+          <span class="float-end">{{ post_button(url_for('notify.ack_one', alert_id=a.id), 'Acknowledge', 'btn-outline-secondary py-0') }}</span></li>
+        {% else %}<li class="list-group-item small text-body-secondary">None.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card"><div class="card-header">Recent events</div>
+      <ul class="list-group list-group-flush">
+        {% for e in events %}
+        <li class="list-group-item small"><span class="text-body-secondary">{{ e.ts|localtime(false) }}</span>
+          [{{ e.category }}] {{ e.message }}</li>
+        {% else %}<li class="list-group-item small text-body-secondary">None.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

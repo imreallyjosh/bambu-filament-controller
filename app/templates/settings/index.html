@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import field %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Settings</h1>
+<div class="row g-3 mb-4">
+  <div class="col-lg-7">
+    <form method="post" action="{{ url_for('settings.save_safety') }}" class="card h-100">
+      <div class="card-header">Safety</div>
+      <div class="card-body">
+        {{ safety.hidden_tag() }}
+        <div class="row">{{ field(safety.max_heating_minutes, 'col-md-6') }}{{ field(safety.disconnect_timeout_s, 'col-md-6') }}</div>
+        {{ field(safety.hardware_cutoff_description) }}
+        {{ field(safety.hardware_cutoff_confirmed) }}
+        <div class="alert alert-secondary small">
+          Software can't guarantee heater shutdown if this server, the network, or the printer firmware stops responding.
+          Scheduled or unattended heating needs <strong>either</strong> a confirmed independent cutoff (e.g. a smart plug
+          with its own on-device auto-off timer, or a thermostat on printer mains power) <strong>or</strong> your
+          explicit acceptance below.
+        </div>
+        {{ field(safety.no_cutoff_risk_accepted) }}
+        <p class="small text-body-secondary">Without a cutoff, these software protections remain: verified heater-off at the
+          end of every run, over-temperature shutdown, maximum heating time, ntfy alerts if a printer or the controller
+          stops responding, and an automatic heater-off as soon as the controller restarts and can reach the printer.
+          The printer's own thermal protection is never bypassed.</p>
+        <button class="btn btn-primary btn-sm">Save safety settings</button>
+      </div>
+    </form>
+  </div>
+  <div class="col-lg-5">
+    <div class="card mb-3"><div class="card-header">System</div>
+      <div class="card-body small"><dl class="row mb-0">
+        <dt class="col-6">Timezone</dt><dd class="col-6">{{ tz_label }}</dd>
+        <dt class="col-6">Heater control switch</dt><dd class="col-6">{{ 'ON' if config.ALLOW_HEATER_CONTROL else 'off' }}</dd>
+        <dt class="col-6">MQTT telemetry switch</dt><dd class="col-6">{{ 'ON' if config.ENABLE_MQTT else 'off' }}</dd>
+        <dt class="col-6">Controller</dt><dd class="col-6">{% if controller %}{{ 'running' if controller.alive else 'DOWN' }}, {{ controller.mqtt_mode }}{% endif %}</dd>
+        <dt class="col-6">Controller started</dt><dd class="col-6">{{ controller.started_at|localtime if controller else '—' }}</dd>
+      </dl>
+      <p class="text-body-secondary mt-2 mb-0">The switches are set in <code>/etc/bambu-filament-controller/controller.env</code>
+        and can't be changed from the web UI.</p></div>
+    </div>
+    <form method="post" action="{{ url_for('settings.change_password') }}" class="card">
+      <div class="card-header">Change password</div>
+      <div class="card-body">
+        {{ pw_form.hidden_tag() }}
+        {{ field(pw_form.current) }}{{ field(pw_form.new) }}{{ field(pw_form.confirm) }}
+        <button class="btn btn-primary btn-sm">Change password</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">Event log
+    <form method="get" class="d-flex gap-2">
+      <select name="level" class="form-select form-select-sm" aria-label="Level">
+        <option value="">All levels</option>
+        {% for l in ['info', 'warning', 'error', 'critical'] %}<option {{ 'selected' if level == l }}>{{ l }}</option>{% endfor %}
+      </select><button class="btn btn-sm btn-outline-secondary">Filter</button>
+    </form>
+  </div>
+  <div class="table-responsive"><table class="table table-sm small mb-0">
+    <thead><tr><th>Time</th><th>Level</th><th>Category</th><th>Actor</th><th>Message</th></tr></thead>
+    <tbody>
+    {% for e in events %}
+    <tr><td class="text-nowrap">{{ e.ts|localtime }}</td><td>{{ e.level }}</td><td>{{ e.category }}</td>
+      <td>{{ e.actor or '' }}</td><td>{{ e.message }}</td></tr>
+    {% else %}<tr><td colspan="5" class="text-body-secondary">No events.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

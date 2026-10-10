@@ -1,0 +1,40 @@
+{% macro field(f, cols='') %}
+<div class="mb-3 {{ cols }}">
+  {% if f.type == 'BooleanField' %}
+  <div class="form-check">
+    {{ f(class_='form-check-input' ~ (' is-invalid' if f.errors else '')) }}
+    {{ f.label(class_='form-check-label') }}
+  </div>
+  {% else %}
+  {{ f.label(class_='form-label') }}
+  {% if f.type == 'SelectField' %}
+    {{ f(class_='form-select' ~ (' is-invalid' if f.errors else '')) }}
+  {% elif f.type == 'TextAreaField' %}
+    {{ f(class_='form-control' ~ (' is-invalid' if f.errors else ''), rows=3) }}
+  {% else %}
+    {{ f(class_='form-control' ~ (' is-invalid' if f.errors else '')) }}
+  {% endif %}
+  {% endif %}
+  {% if f.description %}<div class="form-text">{{ f.description }}</div>{% endif %}
+  {% for e in f.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+</div>
+{% endmacro %}
+
+{% macro vs_badge(status) %}
+{% set cls = {'verified': 'success', 'reference': 'info', 'unverified': 'warning', 'unsourced': 'secondary'} %}
+<span class="badge text-bg-{{ cls.get(status, 'secondary') }}">{{ status }}</span>
+{% endmacro %}
+
+{% macro cap_badge(status) %}
+{% set cls = {'verified': 'success', 'spec': 'info', 'documented': 'info', 'unverified': 'warning', 'unsupported': 'secondary'} %}
+<span class="badge text-bg-{{ cls.get(status, 'secondary') }}">{{ status }}</span>
+{% endmacro %}
+
+{% macro post_button(action, label, cls='btn-outline-secondary', confirm=None) %}
+<form method="post" action="{{ action }}" class="d-inline">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="btn btn-sm {{ cls }}" {% if confirm %}data-confirm="{{ confirm }}"{% endif %}>{{ label }}</button>
+</form>
+{% endmacro %}
+
+{% macro val(v, unit='') %}{% if v is none %}<span class="text-body-secondary">—</span>{% else %}{{ v }}{{ unit }}{% endif %}{% endmacro %}

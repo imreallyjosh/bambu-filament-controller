@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import post_button %}
+{% block title %}Printers{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 m-0">Printers</h1>
+  <a class="btn btn-primary btn-sm" href="{{ url_for('printers.create') }}">Add printer</a>
+</div>
+<div class="table-responsive">
+<table class="table table-hover align-middle">
+  <thead><tr>
+    <th>Name</th><th>Model</th><th>IP</th><th>Serial</th><th>Firmware</th><th>Status</th>
+    <th>State</th><th>Bed</th><th>Nozzle</th><th>Chamber</th><th>Heater control</th><th></th>
+  </tr></thead>
+  <tbody>
+  {% for p in printers %}{% set s = p.status %}
+  <tr>
+    <td><a href="{{ url_for('printers.detail', printer_id=p.id) }}">{{ p.name }}</a></td>
+    <td>{{ p.model }}</td>
+    <td><code>{{ p.ip_address }}</code></td>
+    <td><code>{{ p.serial }}</code></td>
+    <td>{{ p.firmware_version_reported or p.firmware_version or '—' }}
+      {% if p.firmware_version and not p.firmware_version_reported %}<span class="text-body-secondary small">(entered)</span>{% endif %}</td>
+    <td>{% include "partials/online_badge.html" %}</td>
+    <td data-live="{{ p.id }}" data-f="gcode_state">{{ (s.gcode_state if s else none) or '—' }}</td>
+    <td><span data-live="{{ p.id }}" data-f="bed_temp_c">{{ (s.bed_temp_c if s else none)|temp }}</span> /
+      <span data-live="{{ p.id }}" data-f="bed_target_c">{{ (s.bed_target_c if s else none)|temp }}</span></td>
+    <td data-live="{{ p.id }}" data-f="nozzle_temp_c">{{ (s.nozzle_temp_c if s else none)|temp }}</td>
+    <td>{% if PROFILES[p.model].cap('chamber_temp_sensor').status == 'unsupported' %}<span class="text-body-secondary small">no sensor</span>
+      {% else %}<span data-live="{{ p.id }}" data-f="chamber_temp_c">{{ (s.chamber_temp_c if s else none)|temp }}</span>{% endif %}</td>
+    <td>{% if p.heater_control_verified %}<span class="badge text-bg-success">verified</span>
+      {% else %}<span class="badge text-bg-secondary">not verified</span>{% endif %}</td>
+    <td class="text-end text-nowrap">
+      <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('printers.edit', printer_id=p.id) }}">Edit</a>
+      {{ post_button(url_for('printers.toggle', printer_id=p.id), 'Disable' if p.enabled else 'Enable',
+                     'btn-outline-warning' if p.enabled else 'btn-outline-success') }}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="12" class="text-body-secondary">No printers yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="small text-body-secondary">Enabling a printer opens a <em>read-only</em> MQTT connection (when monitoring is
+switched on for the server). The only requests ever sent are "full status" and "firmware version".</p>
+{% endblock %}

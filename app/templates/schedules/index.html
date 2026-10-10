@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import post_button %}
+{% block title %}Schedules{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 m-0">Schedules</h1>
+  <a class="btn btn-sm btn-primary" href="{{ url_for('drying.index') }}">New schedule (from Drying)</a>
+</div>
+<div class="alert {{ 'alert-secondary' if unattended[0] else 'alert-warning' }} small">
+  Times use the server timezone: <strong>{{ tz_label }}</strong>. Unattended heating:
+  <strong>{{ unattended[1] }}</strong>. Each session needs its own preparation confirmation; an unconfirmed or missed
+  session is skipped and reported via ntfy, never started late.
+</div>
+<div class="table-responsive"><table class="table small align-middle">
+  <thead><tr><th>#</th><th>Next start</th><th>Stop</th><th>Printer</th><th>Preset</th><th>Bed</th><th>Repeat</th>
+    <th>Preparation</th><th>Last result</th><th></th></tr></thead>
+  <tbody>
+  {% for s in schedules %}
+  <tr class="{{ '' if s.enabled else 'text-body-secondary' }}">
+    <td>{{ s.id }}</td>
+    <td class="text-nowrap">{{ s.start_at|localtime }}{% if not s.enabled %} <span class="badge text-bg-secondary">disabled</span>{% endif %}</td>
+    <td>{% if s.end_at %}at {{ s.end_at|localtime }}{% else %}{{ ((s.duration_min or 0) / 60)|round(2) }} h after target{% endif %}</td>
+    <td>{{ s.printer.name }}</td><td>{{ s.preset.label if s.preset else '?' }}</td><td>{{ s.target_bed_c|temp }}</td>
+    <td>{{ s.repeat_rule or 'once' }}</td>
+    <td>
+      {% if s.prepared %}<span class="badge text-bg-success">confirmed</span>
+      {% elif s.enabled and s.start_at > now %}
+      <form method="post" action="{{ url_for('schedules.prepare', schedule_id=s.id) }}" class="small">
+        {{ prep_form.hidden_tag() }}
+        {% for f in [prep_form.prep_spool, prep_form.prep_cover, prep_form.prep_spool_heat] %}
+        <div class="form-check">{{ f(class_='form-check-input', id=f.id ~ '-' ~ s.id) }}
+          <label class="form-check-label" for="{{ f.id }}-{{ s.id }}">{{ f.label.text }}</label></div>
+        {% endfor %}
+        <button class="btn btn-sm btn-outline-success mt-1">Confirm preparation</button>
+      </form>
+      {% else %}—{% endif %}
+    </td>
+    <td>{{ s.last_result or '' }}</td>
+    <td class="text-end text-nowrap">
+      {{ post_button(url_for('schedules.toggle', schedule_id=s.id), 'Disable' if s.enabled else 'Enable') }}
+      {{ post_button(url_for('schedules.delete', schedule_id=s.id), 'Delete', 'btn-outline-danger', confirm='Delete this schedule?') }}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="10" class="text-body-secondary">No schedules. Create one from the Drying page.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% endblock %}

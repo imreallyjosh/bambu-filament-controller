@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import vs_badge, val, field %}
+{% block title %}Annealing{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 m-0">Annealing</h1>
+  <a class="btn btn-outline-primary btn-sm" href="{{ url_for('annealing.edit') }}">New annealing preset</a>
+</div>
+
+{% for proc in active %}{% include "partials/process_card.html" %}{% endfor %}
+
+<form method="get" class="card card-body mb-4">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-5">
+      <label class="form-label" for="printer_id">Printer</label>
+      <select class="form-select" name="printer_id" id="printer_id">
+        <option value="">Select…</option>
+        {% for p in printers %}<option value="{{ p.id }}" {{ 'selected' if printer and printer.id == p.id }}>{{ p.name }} ({{ p.model }})</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-5">
+      <label class="form-label" for="preset_id">Annealing preset</label>
+      <select class="form-select" name="preset_id" id="preset_id">
+        <option value="">Select…</option>
+        {% for a in presets %}<option value="{{ a.id }}" {{ 'selected' if preset and preset.id == a.id }}>{{ a.manufacturer }} {{ a.material }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2"><button class="btn btn-primary w-100">Review</button></div>
+  </div>
+</form>
+
+{% if review %}
+{% include "partials/prepare_card.html" %}
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="card h-100"><div class="card-header">Program: {{ printer.name }}</div>
+      <div class="card-body small">
+        {% if preset %}
+        <dl class="row">
+          <dt class="col-6">Preset temperature</dt><dd class="col-6">{{ val(preset.anneal_temp_c, ' °C') }} {{ vs_badge(preset.verification_status) }}</dd>
+          <dt class="col-6">Preset hold</dt><dd class="col-6">{{ val((preset.hold_minutes / 60)|round(1) if preset.hold_minutes else none, ' h') }}</dd>
+          <dt class="col-6">Ramps</dt><dd class="col-6">up {{ val(preset.heat_ramp_c_per_h, ' °C/h') }}, down {{ val(preset.cool_ramp_c_per_h, ' °C/h') }}</dd>
+          <dt class="col-6">Warnings</dt><dd class="col-6">{{ val(preset.distortion_warning) }}</dd>
+          <dt class="col-6">Source</dt><dd class="col-6 text-break">{{ val(preset.source_reference) }}</dd>
+        </dl>
+        {% if review.clamped %}<div class="alert alert-warning py-2">The preset's {{ review.clamped|int }} °C is above this printer's limit; the form uses {{ review.effective_max|int }} °C.</div>{% endif %}
+        {% if review.plan %}
+        <p class="mb-2"><strong>Estimated program</strong> (from a 25 °C bed):
+          ramp up {{ (review.plan.ramp_up / 60)|round(1) }} h · hold {{ (review.plan.hold / 60)|round(1) }} h ·
+          controlled cool-down {{ (review.plan.cool / 60)|round(1) }} h ≈ <strong>{{ (review.plan.total / 60)|round(1) }} h</strong>
+          (safety limit {{ (max_heating / 60)|round(1) }} h).</p>
+        {% endif %}
+        {% else %}<p class="text-body-secondary">Select a preset.</p>{% endif %}
+        <h2 class="h6">Temperature limits (lowest wins)</h2>
+        <ul class="mb-1">{% for k, v in review.limits.items() %}<li>{{ k }}: {{ v|int }} °C</li>{% endfor %}</ul>
+        <div>Over-temperature shutdown at the annealing temperature + {{ overshoot|int }} °C.</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card h-100"><div class="card-header">Checks</div>
+      <ul class="list-group list-group-flush small">
+        {% for g in review.gates %}
+        <li class="list-group-item d-flex justify-content-between gap-2"><span>{{ '✅' if g.ok else '⛔' }} {{ g.label }}</span>
+          <span class="text-body-secondary text-end">{{ g.detail }}</span></li>
+        {% endfor %}
+      </ul>
+      <div class="card-body small text-body-secondary">Tips: lay the part on its largest flat face; a box or cover over it
+        keeps the air around it warmer. Use ramps for thick or tall parts.</div>
+    </div>
+  </div>
+</div>
+
+{% if form %}
+<form method="post" action="{{ url_for('annealing.start') }}" class="card mb-4">
+  <div class="card-header">Start annealing</div>
+  <div class="card-body">
+    {{ form.hidden_tag() }}
+    <div class="row">
+      {{ field(form.anneal_temp_c, 'col-md-4') }}{{ field(form.hold_h, 'col-md-4') }}
+    </div>
+    <div class="row">
+      {{ field(form.heat_ramp_c_per_h, 'col-md-4') }}{{ field(form.cool_ramp_c_per_h, 'col-md-4') }}{{ field(form.cool_end_c, 'col-md-4') }}
+    </div>
+    {{ field(form.prep_part) }}{{ field(form.prep_closed) }}{{ field(form.prep_warp) }}
+    <button class="btn btn-warning" {{ 'disabled' if not review.ready }}>Start annealing</button>
+  </div>
+</form>
+{% endif %}
+{% endif %}
+
+<h2 class="h5">Annealing presets</h2>
+<div class="table-responsive mb-4"><table class="table table-hover small align-middle">
+  <thead><tr><th>Material</th><th>Manufacturer</th><th>Temp</th><th>Hold</th><th>Heat ramp</th><th>Cool ramp</th>
+    <th>Max</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+  {% for a in presets %}
+  <tr>
+    <td>{{ a.material }} {% if a.is_template %}<span class="badge text-bg-dark border">template</span>{% endif %}</td>
+    <td>{{ a.manufacturer }}</td>
+    <td>{{ val(a.anneal_temp_c, ' °C') }}</td><td>{{ val((a.hold_minutes / 60)|round(1) if a.hold_minutes else none, ' h') }}</td>
+    <td>{{ val(a.heat_ramp_c_per_h, ' °C/h') }}</td><td>{{ val(a.cool_ramp_c_per_h, ' °C/h') }}</td>
+    <td>{{ val(a.max_temp_c, ' °C') }}</td><td>{{ vs_badge(a.verification_status) }}</td>
+    <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="{{ url_for('annealing.edit', preset_id=a.id) }}">Edit</a></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+
+{% if recent %}
+<h2 class="h5">Recent annealing runs</h2>
+<ul class="list-group small mb-3">
+  {% for r in recent %}
+  <li class="list-group-item"><a href="{{ url_for('history.detail', process_id=r.id) }}">#{{ r.id }}</a>
+    {{ r.printer_name }} · {{ r.material_label }} · {{ r.state }} · {{ r.started_at|localtime }}
+    {% if r.error %}<span class="text-danger">· {{ r.error }}</span>{% endif %}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

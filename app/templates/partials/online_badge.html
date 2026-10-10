@@ -1,0 +1,2 @@
+<span class="badge {% if not p.enabled %}text-bg-secondary{% elif p.status and p.status.online %}text-bg-success{% else %}text-bg-danger{% endif %}"
+      data-live="{{ p.id }}" data-f="online">{% if not p.enabled %}disabled{% elif p.status and p.status.online %}online{% else %}offline{% endif %}</span>

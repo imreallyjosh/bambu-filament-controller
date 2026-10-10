@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import vs_badge, val, field %}
+{% block title %}Drying{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Drying</h1>
+
+{% for proc in active %}{% include "partials/process_card.html" %}{% endfor %}
+
+<form method="get" class="card card-body mb-4">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label" for="printer_id">1. Printer</label>
+      <select class="form-select" name="printer_id" id="printer_id">
+        <option value="">Select…</option>
+        {% for p in printers %}<option value="{{ p.id }}" {{ 'selected' if printer and printer.id == p.id }}>{{ p.name }} ({{ p.model }})</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label" for="preset_id">2. Filament preset</label>
+      <select class="form-select" name="preset_id" id="preset_id">
+        <option value="">Select…</option>
+        {% for p in presets %}<option value="{{ p.id }}" {{ 'selected' if preset and preset.id == p.id }}>{{ p.label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label" for="spool_g">3. Spool size (g)</label>
+      <input class="form-control" list="spool_sizes" name="spool_g" id="spool_g" type="number" min="1" max="10000" value="{{ spool or '' }}">
+      <datalist id="spool_sizes">{% for s in spool_sizes %}<option value="{{ s }}">{% endfor %}</datalist>
+    </div>
+    <div class="col-md-2"><button class="btn btn-primary w-100">4. Review</button></div>
+  </div>
+  <div class="form-text">Spool size is recorded with the session; it does not change the drying time.</div>
+</form>
+
+{% if review %}
+{% include "partials/prepare_card.html" %}
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="card h-100"><div class="card-header">Recommended settings: {{ printer.name }}</div>
+      <div class="card-body small">
+        {% if preset %}
+        <h2 class="h6">Manufacturer reference (oven/dryer air, not a bed target) {{ vs_badge(preset.verification_status) }}</h2>
+        <dl class="row">
+          <dt class="col-6">Air temperature</dt><dd class="col-6">{{ val(preset.ref_air_temp_c, ' °C') }}{% if preset.ref_air_temp_max_c %}–{{ preset.ref_air_temp_max_c }} °C{% endif %}</dd>
+          <dt class="col-6">Duration</dt><dd class="col-6">{{ val(preset.ref_duration_min_h, ' h') }}{% if preset.ref_duration_max_h and preset.ref_duration_max_h != preset.ref_duration_min_h %}–{{ preset.ref_duration_max_h }} h{% endif %}</dd>
+          <dt class="col-6">Source</dt><dd class="col-6 text-break">{{ val(preset.source_reference) }}</dd>
+        </dl>
+        <h2 class="h6">{{ printer.model }} operating settings {% if review.setting %}{{ vs_badge(review.setting.verification_status) }}{% endif %}</h2>
+        <dl class="row">
+          <dt class="col-6">Heated-bed target</dt><dd class="col-6">{{ val(review.setting.bed_target_c if review.setting else none, ' °C') }}
+            {% if not (review.setting and review.setting.bed_target_c) %}<a href="{{ url_for('presets.detail', preset_id=preset.id) }}">set it</a>{% endif %}</dd>
+          <dt class="col-6">Drying time on {{ printer.model }}</dt><dd class="col-6">{{ val(review.setting.drying_time_h if review.setting else none, ' h') }}</dd>
+          <dt class="col-6">Expected enclosure (estimate)</dt><dd class="col-6">{{ val(review.setting.expected_enclosure_c if review.setting else none, ' °C') }}</dd>
+          <dt class="col-6">Spool rotation</dt><dd class="col-6">{{ 'required' if preset.rotation_required else 'not required' }}</dd>
+          <dt class="col-6">Cover</dt><dd class="col-6">{{ val(preset.cover_requirements) }}</dd>
+        </dl>
+        {% if review.setting and review.setting.verification_notes %}<p class="text-body-secondary">{{ review.setting.verification_notes }}</p>{% endif %}
+        {% else %}<p class="text-body-secondary">Select a preset to see settings.</p>{% endif %}
+        <h2 class="h6">Temperature limits (lowest wins)</h2>
+        <ul class="mb-1">{% for k, v in review.limits.items() %}<li>{{ k }}: {{ v|int }} °C</li>{% endfor %}</ul>
+        <div><strong>Maximum bed target: {{ review.effective_max|int }} °C</strong>. Over-temperature shutdown at target + 8 °C.</div>
+        <p class="mt-2 mb-0 text-body-secondary">
+          {% if review.chamber_sensor %}The X1's chamber reading is the printer's own sensor, not the filament temperature.
+          {% else %}No chamber sensor on {{ printer.model }}; the only measurement is the bed heater.{% endif %}
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card h-100"><div class="card-header">Safety gates</div>
+      <ul class="list-group list-group-flush small">
+        {% for g in review.gates %}
+        <li class="list-group-item d-flex justify-content-between gap-2">
+          <span>{{ '✅' if g.ok else ('⚠️' if g.kind == 'advisory' else '⛔') }} {{ g.label }}
+            {% if g.kind == 'scheduled' %}<span class="badge text-bg-dark border">scheduled only</span>{% endif %}
+            {% if g.kind == 'now' %}<span class="badge text-bg-dark border">start now</span>{% endif %}</span>
+          <span class="text-body-secondary text-end">{{ g.detail }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+{% if form %}
+<form method="post" action="{{ url_for('drying.start') }}" class="card mb-4">
+  <div class="card-header">5–8. Adjust, prepare and start</div>
+  <div class="card-body">
+    {{ form.hidden_tag() }}
+    <div class="row">
+      {{ field(form.target_bed_c, 'col-md-3') }}
+      {{ field(form.spool_size_g, 'col-md-3') }}
+    </div>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <div class="form-label">{{ form.start_mode.label.text }}</div>
+        {% for opt in form.start_mode %}<div class="form-check">{{ opt(class_='form-check-input') }} {{ opt.label(class_='form-check-label') }}</div>{% endfor %}
+        <div class="row mt-2">{{ field(form.start_at, 'col-7') }}{{ field(form.repeat_rule, 'col-5') }}</div>
+        <div class="form-text">Times are {{ tz_label }}. A scheduled session that can't start within 5 minutes of its time is skipped and reported, never started late.</div>
+      </div>
+      <div class="col-md-6 mb-3">
+        <div class="form-label">{{ form.stop_mode.label.text }}</div>
+        {% for opt in form.stop_mode %}<div class="form-check">{{ opt(class_='form-check-input') }} {{ opt.label(class_='form-check-label') }}</div>{% endfor %}
+        <div class="row mt-2">{{ field(form.duration_h, 'col-6') }}{{ field(form.end_at, 'col-6') }}</div>
+      </div>
+    </div>
+    {{ field(form.flip_reminder) }}
+    <h2 class="h6 mt-2">Physical preparation (confirm for this session)</h2>
+    {{ field(form.prep_spool) }}{{ field(form.prep_cover) }}{{ field(form.prep_spool_heat) }}{{ field(form.prep_probe) }}
+    {% if not (review.setting and review.setting.verification_status == 'verified') %}{{ field(form.accept_unverified) }}{% endif %}
+    <button class="btn btn-warning" {{ 'disabled' if not (review.ready_now or review.ready_scheduled) }}>Start / schedule drying</button>
+    {% if not review.ready_now %}<span class="small text-body-secondary ms-2">Start now is blocked by a ⛔ gate above.</span>{% endif %}
+  </div>
+</form>
+{% endif %}
+{% endif %}
+{% endblock %}

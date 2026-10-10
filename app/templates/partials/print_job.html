@@ -1,0 +1,19 @@
+{# Current print job. Requires `p` (printer) and `job` (from app.printjob.job_info). Refreshed by app.js. #}
+<div class="print-job mt-2" data-job="{{ p.id }}" {{ 'hidden' if not job }}>
+  <hr class="my-2">
+  <div class="d-flex justify-content-between align-items-baseline gap-2 small">
+    <strong class="text-truncate" data-jf="name" title="{{ job.name if job else '' }}">{{ job.name if job else '' }}</strong>
+    <span class="badge text-bg-primary" data-jf="state_label">{{ job.state_label if job else '' }}</span>
+  </div>
+  <div class="progress my-1" role="progressbar" aria-label="Print progress">
+    <div class="progress-bar" data-jf="percent_bar"></div>
+  </div>
+  <dl class="row small mb-0">
+    <dt class="col-6">Progress</dt><dd class="col-6"><span data-jf="percent">{{ job.percent if job and job.percent is not none else '—' }}</span> %</dd>
+    <dt class="col-6">Layer</dt><dd class="col-6" data-jf="layers">{% if job and job.layer is not none %}{{ job.layer }} / {{ job.total_layers or '?' }}{% else %}—{% endif %}</dd>
+    <dt class="col-6">Remaining</dt><dd class="col-6" data-jf="remaining">{{ (job.remaining if job else none) or '—' }}</dd>
+    <dt class="col-6">Finishes at</dt><dd class="col-6" data-jf="eta">{{ (job.eta if job else none) or '—' }}</dd>
+    <dt class="col-6">Stage</dt><dd class="col-6" data-jf="stage">{{ (job.stage if job else none) or '—' }}</dd>
+    <dt class="col-6">Speed</dt><dd class="col-6" data-jf="speed">{{ (job.speed if job else none) or '—' }}</dd>
+  </dl>
+</div>

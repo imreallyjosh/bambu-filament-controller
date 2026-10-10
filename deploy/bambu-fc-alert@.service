@@ -1,0 +1,8 @@
+[Unit]
+Description=Bambu Filament Controller - failure alert for %i
+
+[Service]
+Type=oneshot
+User=bambufc
+Group=bambufc
+ExecStart=/opt/bambu-filament-controller/deploy/manage.sh notify-event controller_down --details "systemd unit %i entered failed state"
