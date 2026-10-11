@@ -26,3 +26,6 @@ details > summary { cursor: pointer; }
 .camera-box:fullscreen .camera-exit, .camera-box.camera-overlay .camera-exit {
   display: block; position: absolute; top: .75rem; right: .75rem; opacity: .85;
 }
+.filament-swatch { display: inline-block; width: .8em; height: .8em; border-radius: 50%; border: 1px solid #888;
+  vertical-align: -0.05em; margin-right: .2em; }
+.job-details summary { cursor: pointer; }

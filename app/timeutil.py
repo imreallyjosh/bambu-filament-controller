@@ -45,3 +45,19 @@ def ago(dt: datetime | None) -> str:
     if secs < 86400:
         return f"{secs // 3600}h ago"
     return f"{secs // 86400}d ago"
+
+
+def friendly(dt: datetime | None) -> str | None:
+    """'Today 3:45 PM', 'Tomorrow 1:10 AM', else 'Sat Oct 12, 9:00 AM' (server timezone)."""
+    loc = to_local(dt)
+    if loc is None:
+        return None
+    today = datetime.now(local_tz()).date()
+    clock = loc.strftime("%-I:%M %p")
+    if loc.date() == today:
+        return f"Today {clock}"
+    if (loc.date() - today).days == 1:
+        return f"Tomorrow {clock}"
+    if (loc.date() - today).days == -1:
+        return f"Yesterday {clock}"
+    return loc.strftime("%a %b %-d, ") + clock

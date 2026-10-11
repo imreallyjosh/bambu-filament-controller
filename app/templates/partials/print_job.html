@@ -5,15 +5,34 @@
     <strong class="text-truncate" data-jf="name" title="{{ job.name if job else '' }}">{{ job.name if job else '' }}</strong>
     <span class="badge text-bg-primary" data-jf="state_label">{{ job.state_label if job else '' }}</span>
   </div>
+  <div class="job-eta" data-jf-row="eta" {{ 'hidden' if not (job and job.eta) }}>
+    <span class="text-body-secondary small">Expected completion</span>
+    <div class="fs-5 fw-semibold" data-jf="eta">{{ job.eta if job else '' }}</div>
+  </div>
   <div class="progress my-1" role="progressbar" aria-label="Print progress">
     <div class="progress-bar" data-jf="percent_bar"></div>
   </div>
-  <dl class="row small mb-0">
+  <dl class="row small mb-1">
     <dt class="col-6">Progress</dt><dd class="col-6"><span data-jf="percent">{{ job.percent if job and job.percent is not none else '—' }}</span> %</dd>
-    <dt class="col-6">Layer</dt><dd class="col-6" data-jf="layers">{% if job and job.layer is not none %}{{ job.layer }} / {{ job.total_layers or '?' }}{% else %}—{% endif %}</dd>
     <dt class="col-6">Remaining</dt><dd class="col-6" data-jf="remaining">{{ (job.remaining if job else none) or '—' }}</dd>
-    <dt class="col-6">Finishes at</dt><dd class="col-6" data-jf="eta">{{ (job.eta if job else none) or '—' }}</dd>
+    <dt class="col-6">Layer</dt><dd class="col-6" data-jf="layers">{% if job and job.layer is not none %}{{ job.layer }} / {{ job.total_layers or '?' }}{% else %}—{% endif %}</dd>
     <dt class="col-6">Stage</dt><dd class="col-6" data-jf="stage">{{ (job.stage if job else none) or '—' }}</dd>
-    <dt class="col-6">Speed</dt><dd class="col-6" data-jf="speed">{{ (job.speed if job else none) or '—' }}</dd>
   </dl>
+  <div class="small text-danger" data-jf-row="problems" {{ 'hidden' if not (job and (job.error or job.hms_count)) }}>
+    ⚠️ <span data-jf="problems">{% if job and job.error %}Printer error {{ job.error }}{% endif %}{% if job and job.error and job.hms_count %} · {% endif %}{% if job and job.hms_count %}{{ job.hms_count }} health warning(s){% endif %}</span>
+  </div>
+  <details class="small job-details">
+    <summary class="text-body-secondary">More details</summary>
+    <dl class="row mb-0 mt-1">
+      <dt class="col-6">Started</dt><dd class="col-6" data-jf="started">{{ (job.started if job else none) or '—' }}</dd>
+      <dt class="col-6">Elapsed</dt><dd class="col-6" data-jf="elapsed">{{ (job.elapsed if job else none) or '—' }}</dd>
+      <dt class="col-6">Total (estimated)</dt><dd class="col-6" data-jf="total">{{ (job.total if job else none) or '—' }}</dd>
+      <dt class="col-6">Filament</dt>
+      <dd class="col-6"><span class="filament-swatch" data-jf-color="{{ job.filament.color if job and job.filament and job.filament.color else '' }}"></span>
+        <span data-jf="filament">{% if job and job.filament %}{{ job.filament.type }}{% if job.filament.remain is not none %} · {{ job.filament.remain }}% left{% endif %}{% else %}—{% endif %}</span>
+        <div class="text-body-secondary" data-jf="filament_source">{{ job.filament.source if job and job.filament else '' }}</div></dd>
+      <dt class="col-6">Fans</dt><dd class="col-6" data-jf="fans">{{ (job.fans if job else none) or '—' }}</dd>
+      <dt class="col-6">Speed</dt><dd class="col-6" data-jf="speed">{{ (job.speed if job else none) or '—' }}</dd>
+    </dl>
+  </details>
 </div>

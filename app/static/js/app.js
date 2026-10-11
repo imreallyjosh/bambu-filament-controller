@@ -26,6 +26,16 @@ function applyStatus(p) {
   });
 }
 
+// Filament colour swatches: set from JS because the CSP forbids inline styles.
+function paintSwatches(root) {
+  root.querySelectorAll("[data-jf-color]").forEach((el) => {
+    const c = el.dataset.jfColor;
+    el.hidden = !/^#[0-9a-fA-F]{6}$/.test(c);
+    if (!el.hidden) el.style.backgroundColor = c;
+  });
+}
+paintSwatches(document);
+
 function applyJob(p) {
   const box = document.querySelector(`[data-job="${p.id}"]`);
   if (!box) return;
@@ -42,6 +52,22 @@ function applyJob(p) {
   set("eta", job.eta);
   set("stage", job.stage);
   set("speed", job.speed);
+  set("started", job.started);
+  set("elapsed", job.elapsed);
+  set("total", job.total);
+  set("fans", job.fans);
+  const fil = job.filament;
+  set("filament", fil ? `${fil.type}${fil.remain !== null ? ` · ${fil.remain}% left` : ""}` : null);
+  box.querySelectorAll('[data-jf="filament_source"]').forEach((el) => { el.textContent = fil ? fil.source : ""; });
+  box.querySelectorAll("[data-jf-color]").forEach((el) => {
+    el.dataset.jfColor = fil && fil.color ? fil.color : "";
+  });
+  const problems = [job.error ? `Printer error ${job.error}` : null,
+    job.hms_count ? `${job.hms_count} health warning(s)` : null].filter(Boolean).join(" · ");
+  set("problems", problems);
+  box.querySelectorAll('[data-jf-row="problems"]').forEach((el) => { el.hidden = !problems; });
+  box.querySelectorAll('[data-jf-row="eta"]').forEach((el) => { el.hidden = !job.eta; });
+  paintSwatches(box);
   const bar = box.querySelector('[data-jf="percent_bar"]');
   bar.style.width = `${job.percent ?? 0}%`;
   bar.classList.toggle("bg-success", job.state === "FINISH");
