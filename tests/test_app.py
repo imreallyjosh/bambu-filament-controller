@@ -624,3 +624,54 @@ def test_loop_watchdog_exits_when_stalled(monkeypatch):
     last["heartbeat"] = 0.0  # disarm: the thread outlives the test and would call the real os._exit
     _time.sleep(0.1)
     assert exited and exited[0] == 70
+
+
+def test_proxy_headers_trusted_only_when_configured():
+    from flask import request
+
+    from app.models import User
+
+    for count, expected in [(0, {"ip": "172.29.0.2", "secure": False, "host": "localhost"}),
+                            (1, {"ip": "203.0.113.9", "secure": True, "host": "bambu.example.com"})]:
+        class Cfg(TestConfig):
+            PROXY_COUNT = count
+
+        app = create_app(Cfg)
+
+        @app.route("/_whoami")
+        def whoami():
+            return {"ip": request.remote_addr, "secure": request.is_secure, "host": request.host}
+
+        with app.app_context():
+            db.create_all()
+            u = User(username="admin")
+            u.set_password("correct-horse-battery")
+            db.session.add(u)
+            db.session.commit()
+            c = app.test_client()
+            env = {"REMOTE_ADDR": "172.29.0.2"}
+            fwd = {"X-Forwarded-For": "203.0.113.9", "X-Forwarded-Proto": "https", "X-Forwarded-Host": "bambu.example.com"}
+            c.post("/login", data={"username": "admin", "password": "correct-horse-battery"}, environ_base=env,
+                   headers=fwd)
+            assert c.get("/_whoami", environ_base=env, headers=fwd).get_json() == expected
+            db.drop_all()
+
+
+def test_login_throttle_uses_forwarded_client_ip():
+    from app.views import auth as auth_view
+
+    class Cfg(TestConfig):
+        PROXY_COUNT = 1
+
+    app = create_app(Cfg)
+    auth_view._FAILS.clear()
+    with app.app_context():
+        db.create_all()
+        c = app.test_client()
+        for _ in range(5):  # attacker locks out their own address only
+            c.post("/login", data={"username": "x", "password": "wrong"}, environ_base={"REMOTE_ADDR": "172.29.0.2"},
+                   headers={"X-Forwarded-For": "198.51.100.7"})
+        assert "198.51.100.7" in auth_view._FAILS and "172.29.0.2" not in auth_view._FAILS
+        assert not auth_view._throttled("203.0.113.9")  # the owner, from another address, is unaffected
+        db.drop_all()
+    auth_view._FAILS.clear()

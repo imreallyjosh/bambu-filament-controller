@@ -32,9 +32,14 @@ class Config:
 
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
-    # Set true if you put the app behind HTTPS (e.g. your nginx-proxy-manager).
+    # Set true if you put the app behind HTTPS (e.g. nginx-proxy-manager).
     SESSION_COOKIE_SECURE = _bool("BFC_COOKIE_SECURE", False)
+    # Number of reverse proxies in front of the app whose X-Forwarded-For/-Proto/-Host headers are trusted.
+    # 0 = none (direct access). Behind one proxy (e.g. nginx-proxy-manager) set 1, so the login throttle and
+    # logs see the real client address and HTTPS is recognised.
+    PROXY_COUNT = int(os.environ.get("BFC_PROXY_COUNT", "0") or 0)
     REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SECURE = SESSION_COOKIE_SECURE
     PERMANENT_SESSION_LIFETIME = 60 * 60 * 12
     WTF_CSRF_TIME_LIMIT = None  # token valid for the session lifetime
 

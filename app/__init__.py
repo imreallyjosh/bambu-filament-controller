@@ -4,6 +4,7 @@ import os
 
 import click
 from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from . import timeutil
 from .capabilities import PROFILES
@@ -23,6 +24,10 @@ def create_app(config_object=None) -> Flask:
             "BFC_SECRET_KEY and BFC_FERNET_KEY must be set "
             "(see /etc/bambu-filament-controller/controller.env)"
         )
+
+    if app.config.get("PROXY_COUNT"):
+        n = app.config["PROXY_COUNT"]
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=n, x_proto=n, x_host=n)
 
     db.init_app(app)
     migrate.init_app(app, db, directory=os.path.join(os.path.dirname(__file__), "..", "migrations"))

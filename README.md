@@ -105,9 +105,18 @@ Details: [docs/SAFETY.md](docs/SAFETY.md).
 | `BFC_PORT` | `8092` | Port the dashboard is published on |
 | `BFC_ENABLE_MQTT` | `true` | Read-only printer monitoring |
 | `BFC_ALLOW_HEATER_CONTROL` | `false` | Master switch for heating and printer motion |
-| `BFC_COOKIE_SECURE` | `false` | Set `true` behind an HTTPS reverse proxy |
+| `BFC_COOKIE_SECURE` | `false` | Set `true` behind an HTTPS reverse proxy (then use only the `https://` address) |
+| `BFC_PROXY_COUNT` | `0` | Set `1` behind one reverse proxy, so the real client IP and HTTPS are recognised |
 
 After editing, run `docker compose up -d`. Notifications, safety limits and presets are set in the web UI.
+
+## Access from outside your home (HTTPS)
+
+Put it behind a reverse proxy with a certificate, for example Nginx Proxy Manager: a proxy host for your
+subdomain, forwarding to `http://<server-ip>:8092`, with a Let's Encrypt certificate and "Force SSL". Then set
+`BFC_COOKIE_SECURE=true` and `BFC_PROXY_COUNT=1` in `.env` and run `docker compose up -d`. This app can switch
+heaters on, so use a strong, unique password. Consider an extra layer in front, such as an access list in your
+proxy, or reach it over a VPN (WireGuard, Tailscale) instead of exposing it publicly.
 
 ## How it's built
 

@@ -65,6 +65,7 @@ BFC_FERNET_KEY=$FERNET
 BFC_DATABASE_URI=sqlite:///$DATA/controller.db
 # BFC_TIMEZONE=America/Chicago   # default: server timezone
 # BFC_COOKIE_SECURE=true         # only if served over HTTPS
+# BFC_PROXY_COUNT=1              # behind one reverse proxy (e.g. Nginx Proxy Manager)
 
 # Safety switches - leave false until the corresponding phase is verified.
 BFC_ENABLE_MQTT=false
